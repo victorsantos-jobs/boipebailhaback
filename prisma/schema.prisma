@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String   // Hash da senha
+  name        String
+  avatar      String?
+  bio         String?
+  location    String?
+  verified    Boolean  @default(false)
+  provider    String?  // 'local', 'google', 'facebook'
+  providerId  String?  // ID do provider externo
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  posts       Post[]
+  likes       Like[]
+  comments    Comment[]
+  events      Event[]
+  bookings    Booking[]
+  followers   Follow[] @relation("UserFollows")
+  following   Follow[] @relation("UserFollowers")
+
+  @@map("users")
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  content     String?
+  imageUrl    String?
+  location    String?
+  tags        String[] // Array de tags como ["praia", "morere", "snorkeling"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes       Like[]
+  comments    Comment[]
+
+  @@map("posts")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId]) // Um usuário só pode curtir um post uma vez
+  @@map("likes")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Relacionamentos
+  followerId  String   // Quem está seguindo
+  follower    User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String   // Quem está sendo seguido
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId]) // Um usuário não pode seguir o mesmo usuário duas vezes
+  @@map("follows")
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String?
+  date        DateTime
+  location    String?
+  price       Float?    // Preço em reais, null se gratuito
+  maxPeople   Int?      // Limite de participantes
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relacionamentos
+  organizerId String
+  organizer   User      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+
+  @@map("events")
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  status    BookingStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relacionamentos
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId]) // Um usuário só pode reservar um evento uma vez
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
